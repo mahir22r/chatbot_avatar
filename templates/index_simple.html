@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mike - 3D AI Avatar Chat</title>
+    <style>
+        :root {
+            --primary: #00a0d2;
+            --secondary: #0078a8;
+            --accent: #ff6b6b;
+            --bg-dark: #0a0e27;
+            --bg-lighter: #1a1f3a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b5c0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 0;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-lighter) 100%);
+        }
+
+        .avatar-section {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a3a52 0%, #2c2c54 50%, #1a3a52 100%);
+            overflow: hidden;
+            box-shadow: inset -2px 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: linear-gradient(180deg, #0f1b35 0%, #1a3a52 50%, #0f1b35 100%);
+        }
+
+        .avatar-info {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            z-index: 10;
+            background: rgba(10, 14, 39, 0.9);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .avatar-info h3 {
+            color: var(--primary);
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .avatar-info p {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-lighter) 100%);
+            border-left: 1px solid rgba(0, 160, 210, 0.2);
+        }
+
+        .chat-header {
+            padding: 30px;
+            border-bottom: 1px solid rgba(0, 160, 210, 0.1);
+            background: rgba(10, 14, 39, 0.5);
+        }
+
+        .chat-header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            line-height: 1.4;
+            font-size: 14px;
+        }
+
+        .message.bot .message-content {
+            background: rgba(0, 160, 210, 0.15);
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            color: var(--text-primary);
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #00a0d2, #0078a8);
+            color: white;
+        }
+
+        .input-section {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(0, 160, 210, 0.1);
+            background: rgba(10, 14, 39, 0.5);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+        }
+
+        #userInput {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            border-radius: 8px;
+            background: rgba(26, 31, 58, 0.8);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        #userInput:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(26, 31, 58, 1);
+        }
+
+        #userInput::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .btn-voice {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            background: rgba(0, 160, 210, 0.1);
+            border-radius: 8px;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+
+        .btn-voice:hover {
+            background: rgba(0, 160, 210, 0.2);
+            border-color: var(--primary);
+        }
+
+        .btn-voice.listening {
+            background: rgba(255, 107, 107, 0.3);
+            border-color: var(--accent);
+            color: var(--accent);
+            animation: pulse 1s infinite;
+        }
+
+        .btn-send {
+            width: 80px;
+            height: 44px;
+            padding: 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 160, 210, 0.3);
+        }
+
+        .btn-send:active {
+            transform: translateY(0);
+        }
+
+        .status-bar {
+            padding: 12px 30px;
+            background: rgba(10, 14, 39, 0.3);
+            border-top: 1px solid rgba(0, 160, 210, 0.1);
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .avatar-section {
+                height: 40vh;
+                min-height: 300px;
+            }
+
+            .chat-section {
+                height: 60vh;
+            }
+        }
+
+        /* Loading animation */
+        .loading-dots {
+            display: inline-flex;
+            gap: 3px;
+        }
+
+        .loading-dots span {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--primary);
+            animation: loading 1.4s infinite;
+        }
+
+        .loading-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .loading-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes loading {
+            0%, 80%, 100% { opacity: 0.3; }
+            40% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Avatar Section -->
+        <div class="avatar-section">
+            <canvas id="renderCanvas"></canvas>
+            
+            <div class="avatar-info">
+                <h3>🤖 Mike - Your AI Friend</h3>
+                <p>Ultra-realistic 3D conversational AI</p>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="chat-header">
+                <h1>Chat with Mike</h1>
+                <p>
+                    <span class="status-indicator"></span>
+                    <span id="statusText">Connecting...</span>
+                </p>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    <div class="message-content">
+                        👋 Hi there! I'm Mike, your ultra-realistic AI friend. I can chat about anything, answer your questions, and I'll respond with genuine expressions and body language. What would you like to talk about?
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="userInput" 
+                            placeholder="Type your message or use voice..." 
+                            autocomplete="off"
+                        />
+                    </div>
+                    <button class="btn-voice" id="voiceBtn" title="Use voice input">🎤</button>
+                    <button class="btn-send" onclick="sendMessage()">
+                        Send
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <span id="connectionStatus">Connected • Ready</span>
+                <span id="aiStatus"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Babylon.js Library -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script>
+        console.log('=== INITIALIZE APP ===');
+        let engine, scene, avatarManager;
+
+        // Simple Avatar Manager
+        class SimpleAvatarManager {
+            constructor(scene) {
+                console.log('Creating avatar...');
+                this.scene = scene;
+                
+                // Create a simple but realistic human head
+                const head = BABYLON.MeshBuilder.CreateSphere('head', { diameter: 0.8, segments: 32 }, scene);
+                head.position.y = 1;
+                
+                // Head material - skin-like
+                const headMat = new BABYLON.StandardMaterial('headMat', scene);
+                headMat.diffuseColor = new BABYLON.Color3(0.95, 0.82, 0.70);
+                headMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                headMat.specularPower = 32;
+                head.material = headMat;
+                
+                // Eyes
+                this.createEyes(scene);
+                
+                // Body
+                const body = BABYLON.MeshBuilder.CreateBox('body', { 
+                    width: 0.4, 
+                    height: 0.8, 
+                    depth: 0.3 
+                }, scene);
+                body.position.y = 0.3;
+                const bodyMat = new BABYLON.StandardMaterial('bodyMat', scene);
+                bodyMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+                body.material = bodyMat;
+                
+                // Arms
+                const armL = BABYLON.MeshBuilder.CreateCylinder('armL', { diameter: 0.1, height: 0.6 }, scene);
+                armL.position.set(-0.25, 0.7, 0);
+                armL.material = headMat;
+                
+                const armR = BABYLON.MeshBuilder.CreateCylinder('armR', { diameter: 0.1, height: 0.6 }, scene);
+                armR.position.set(0.25, 0.7, 0);
+                armR.material = headMat;
+                
+                console.log('✓ Avatar created!');
+            }
+            
+            createEyes(scene) {
+                // Left eye
+                const eyeL = BABYLON.MeshBuilder.CreateSphere('eyeL', { diameter: 0.15 }, scene);
+                eyeL.position.set(-0.15, 1.15, 0.3);
+                const eyeMat = new BABYLON.StandardMaterial('eyeMat', scene);
+                eyeMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                eyeL.material = eyeMat;
+                
+                // Right eye
+                const eyeR = eyeL.clone('eyeR');
+                eyeR.position.x = 0.15;
+            }
+            
+            animate() {
+                // Simple idle animation
+                if (!this.startTime) this.startTime = Date.now();
+                const time = (Date.now() - this.startTime) * 0.001;
+                // Could add animation here
+            }
+        }
+
+        // Initialize
+        function initApp() {
+            try {
+                console.log('Babylon.js version:', BABYLON.Engine.Version);
+                
+                const canvas = document.getElementById('renderCanvas');
+                if (!canvas) throw new Error('Canvas not found!');
+                
+                engine = new BABYLON.Engine(canvas, true);
+                console.log('✓ Engine created');
+                
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.05, 0.1, 0.15, 1);
+                console.log('✓ Scene created');
+                
+                // Camera
+                const camera = new BABYLON.ArcRotateCamera(
+                    'camera',
+                    -Math.PI / 2,
+                    Math.PI / 2.5,
+                    4,
+                    new BABYLON.Vector3(0, 1, 0),
+                    scene
+                );
+                camera.attachControl(canvas, true);
+                console.log('✓ Camera created');
+                
+                // Lights
+                const ambientLight = new BABYLON.HemisphericLight('ambientLight', new BABYLON.Vector3(0, 1, 0), scene);
+                ambientLight.intensity = 0.7;
+                
+                const keyLight = new BABYLON.PointLight('keyLight', new BABYLON.Vector3(3, 4, 3), scene);
+                keyLight.intensity = 1.2;
+                
+                console.log('✓ Lights created');
+                
+                // Create avatar
+                avatarManager = new SimpleAvatarManager(scene);
+                console.log('✓ Avatar created');
+                
+                // Render loop
+                engine.runRenderLoop(() => {
+                    scene.render();
+                    if (avatarManager) avatarManager.animate();
+                });
+                console.log('✓ Render loop started');
+                
+                // Resize handler
+                window.addEventListener('resize', () => {
+                    engine.resize();
+                });
+                
+                document.getElementById('statusText').textContent = 'Connected • Ready';
+                document.getElementById('connectionStatus').textContent = '✓ Connected • Ready';
+                
+                console.log('✓✓✓ APP INITIALIZED SUCCESSFULLY! ✓✓✓');
+            } catch (error) {
+                console.error('ERROR:', error);
+                alert('Error: ' + error.message);
+                document.getElementById('statusText').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Chat functions
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Send to backend
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                if (data.response) {
+                    addMessage(data.response, 'bot');
+                    
+                    // Avatar animations based on emotion
+                    if (data.emotion) {
+                        console.log('Avatar emotion:', data.emotion.emotion);
+                    }
+                }
+            } catch (error) {
+                console.error('Chat error:', error);
+                addMessage('Sorry, I had an error. Please try again.', 'bot');
+            }
+        }
+
+        function addMessage(text, role) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ' + role;
+            messageEl.innerHTML = `<div class="message-content">${text}</div>`;
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Wait for page load
+        window.addEventListener('load', () => {
+            console.log('📄 Page loaded');
+            initApp();
+        });
+
+        // Enter key sends message
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('userInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

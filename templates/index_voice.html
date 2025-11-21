@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mike - Advanced 3D AI Avatar with Voice</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e27;
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+        }
+
+        .avatar-section {
+            flex: 1;
+            background: linear-gradient(135deg, #1a3a52 0%, #2c2c54 50%, #1a3a52 100%);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .avatar-label {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(10, 14, 39, 0.95);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            font-size: 13px;
+        }
+
+        .avatar-label h3 {
+            color: #00a0d2;
+            margin-bottom: 5px;
+        }
+
+        .avatar-label p {
+            color: #b0b5c0;
+            font-size: 12px;
+        }
+
+        .emotion-label {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 14, 39, 0.95);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            color: #00a0d2;
+            font-size: 12px;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            border-left: 1px solid rgba(0, 160, 210, 0.2);
+        }
+
+        .chat-header {
+            padding: 25px 30px;
+            border-bottom: 1px solid rgba(0, 160, 210, 0.1);
+        }
+
+        .chat-header h1 {
+            font-size: 26px;
+            color: #00a0d2;
+            margin-bottom: 8px;
+        }
+
+        .status {
+            font-size: 13px;
+            color: #b0b5c0;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .msg {
+            display: flex;
+            gap: 10px;
+            animation: msgSlide 0.3s ease;
+        }
+
+        @keyframes msgSlide {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .msg.user {
+            justify-content: flex-end;
+        }
+
+        .msg-content {
+            max-width: 70%;
+            padding: 12px 15px;
+            border-radius: 8px;
+            word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .msg.bot .msg-content {
+            background: rgba(0, 160, 210, 0.15);
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            color: #ffffff;
+        }
+
+        .msg.user .msg-content {
+            background: linear-gradient(135deg, #00a0d2, #0078a8);
+            color: #ffffff;
+        }
+
+        .input-area {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(0, 160, 210, 0.1);
+            background: rgba(10, 14, 39, 0.3);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        #msgInput {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            background: rgba(26, 31, 58, 0.8);
+            color: #ffffff;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        #msgInput:focus {
+            outline: none;
+            border-color: #00a0d2;
+            background: rgba(26, 31, 58, 1);
+        }
+
+        #msgInput::placeholder {
+            color: #b0b5c0;
+        }
+
+        .btn-send, .btn-voice {
+            padding: 12px 20px;
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, #00a0d2, #0078a8);
+            padding: 12px 25px;
+        }
+
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 160, 210, 0.3);
+        }
+
+        .btn-send:active {
+            transform: translateY(0);
+        }
+
+        .btn-voice {
+            background: rgba(0, 160, 210, 0.2);
+            border: 1px solid rgba(0, 160, 210, 0.5);
+            color: #00a0d2;
+            padding: 12px 18px;
+        }
+
+        .btn-voice:hover {
+            background: rgba(0, 160, 210, 0.3);
+        }
+
+        .btn-voice.listening {
+            background: rgba(255, 107, 107, 0.3);
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+            animation: micPulse 0.6s infinite;
+        }
+
+        @keyframes micPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(255, 107, 107, 0);
+            }
+        }
+
+        .btn-voice.speaking {
+            background: rgba(76, 222, 128, 0.3);
+            border-color: #4ade80;
+            color: #4ade80;
+            animation: speakPulse 0.6s infinite;
+        }
+
+        @keyframes speakPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(76, 222, 128, 0.7);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(76, 222, 128, 0);
+            }
+        }
+
+        .voice-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #ff6b6b;
+            border-radius: 50%;
+            animation: blink 0.6s infinite;
+            margin-right: 5px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .footer {
+            padding: 10px 30px;
+            background: rgba(10, 14, 39, 0.2);
+            border-top: 1px solid rgba(0, 160, 210, 0.1);
+            font-size: 12px;
+            color: #b0b5c0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .voice-status {
+            font-size: 12px;
+            color: #b0b5c0;
+        }
+
+        .messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .messages::-webkit-scrollbar-thumb {
+            background: rgba(0, 160, 210, 0.3);
+            border-radius: 3px;
+        }
+
+        .speaking-indicator {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .speaking-bar {
+            width: 3px;
+            height: 12px;
+            background: #00a0d2;
+            border-radius: 2px;
+            animation: soundWave 0.6s infinite;
+        }
+
+        .speaking-bar:nth-child(2) {
+            animation-delay: 0.1s;
+        }
+
+        .speaking-bar:nth-child(3) {
+            animation-delay: 0.2s;
+        }
+
+        @keyframes soundWave {
+            0%, 100% { height: 4px; }
+            50% { height: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Avatar 3D -->
+        <div class="avatar-section">
+            <canvas id="renderCanvas"></canvas>
+            <div class="emotion-label" id="emotionLabel">😊 Neutral</div>
+            <div class="avatar-label">
+                <h3>🤖 Mike</h3>
+                <p>Advanced 3D AI Avatar</p>
+            </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="chat-section">
+            <div class="chat-header">
+                <h1>Chat with Mike</h1>
+                <div class="status">
+                    <span class="status-dot"></span>
+                    <span id="statusText">Connected • Ready</span>
+                </div>
+            </div>
+
+            <div class="messages" id="messagesBox">
+                <div class="msg bot">
+                    <div class="msg-content">
+                        👋 Hi! I'm Mike, your AI assistant. You can text me or use voice! 🎤
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="msgInput" 
+                        placeholder="Type your message or use voice..." 
+                        autocomplete="off"
+                    />
+                    <button class="btn-voice" id="voiceBtn" title="Click to speak (🎤)">
+                        🎤 Voice
+                    </button>
+                    <button class="btn-send" onclick="sendMsg()">
+                        Send ➤
+                    </button>
+                </div>
+            </div>
+
+            <div class="footer">
+                <span id="footerText">✓ Connected • Ready</span>
+                <span id="voiceStatus" class="voice-status"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script>
+        console.log('🚀 Initializing avatar with voice support...');
+        
+        let engine, scene, avatar;
+        let isListening = false;
+        let isSpeaking = false;
+        const speechSynthesis = window.speechSynthesis;
+
+        // Check browser support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            console.warn('Speech Recognition not supported');
+        }
+
+        class Avatar {
+            constructor(scene) {
+                console.log('Creating avatar...');
+                this.scene = scene;
+                this.group = new BABYLON.TransformNode('avatar', scene);
+                this.emotion = 'neutral';
+                this.isSpeaking = false;
+                
+                this.createHead();
+                this.createBody();
+                this.createArms();
+                this.createLegs();
+                this.startAnimations();
+                
+                console.log('✓ Avatar created');
+            }
+
+            createHead() {
+                const head = BABYLON.MeshBuilder.CreateSphere('head', {
+                    diameter: 0.45,
+                    segments: 64
+                }, this.scene);
+                head.position.y = 1.9;
+                
+                const skinMat = new BABYLON.StandardMaterial('skin', this.scene);
+                skinMat.diffuseColor = new BABYLON.Color3(0.96, 0.83, 0.71);
+                skinMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                skinMat.specularPower = 64;
+                head.material = skinMat;
+                head.parent = this.group;
+                this.head = head;
+
+                const hair = BABYLON.MeshBuilder.CreateSphere('hair', {
+                    diameter: 0.48,
+                    segments: 32,
+                    slice: 0.65
+                }, this.scene);
+                hair.position.y = 2.1;
+                
+                const hairMat = new BABYLON.StandardMaterial('hair', this.scene);
+                hairMat.diffuseColor = new BABYLON.Color3(0.25, 0.2, 0.15);
+                hairMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                hair.material = hairMat;
+                hair.parent = this.group;
+
+                const eyeGeom = { diameter: 0.12, segments: 24 };
+                
+                const eyeL = BABYLON.MeshBuilder.CreateSphere('eyeL', eyeGeom, this.scene);
+                eyeL.position.set(-0.14, 1.95, 0.35);
+                const eyeMat = new BABYLON.StandardMaterial('eye', this.scene);
+                eyeMat.diffuseColor = new BABYLON.Color3(0.98, 0.98, 0.98);
+                eyeMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+                eyeMat.specularPower = 128;
+                eyeL.material = eyeMat;
+                eyeL.parent = this.group;
+                this.eyeL = eyeL;
+
+                const eyeR = eyeL.clone('eyeR');
+                eyeR.position.x = 0.14;
+                eyeR.parent = this.group;
+                this.eyeR = eyeR;
+
+                const irisL = BABYLON.MeshBuilder.CreateSphere('irisL', { diameter: 0.07, segments: 16 }, this.scene);
+                irisL.position.set(-0.14, 1.95, 0.4);
+                const irisMat = new BABYLON.StandardMaterial('iris', this.scene);
+                irisMat.diffuseColor = new BABYLON.Color3(0.2, 0.5, 0.8);
+                irisMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                irisL.material = irisMat;
+                irisL.parent = this.group;
+
+                const irisR = irisL.clone('irisR');
+                irisR.position.x = 0.14;
+                irisR.parent = this.group;
+
+                const pupilL = BABYLON.MeshBuilder.CreateSphere('pupilL', { diameter: 0.03, segments: 12 }, this.scene);
+                pupilL.position.set(-0.14, 1.95, 0.415);
+                const pupilMat = new BABYLON.StandardMaterial('pupil', this.scene);
+                pupilMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                pupilL.material = pupilMat;
+                pupilL.parent = this.group;
+
+                const pupilR = pupilL.clone('pupilR');
+                pupilR.position.x = 0.14;
+                pupilR.parent = this.group;
+
+                const mouth = BABYLON.MeshBuilder.CreateBox('mouth', {
+                    width: 0.07,
+                    height: 0.02,
+                    depth: 0.04
+                }, this.scene);
+                mouth.position.set(0, 1.75, 0.38);
+                const mouthMat = new BABYLON.StandardMaterial('mouth', this.scene);
+                mouthMat.diffuseColor = new BABYLON.Color3(0.75, 0.45, 0.45);
+                mouth.material = mouthMat;
+                mouth.parent = this.group;
+                this.mouth = mouth;
+
+                const browL = BABYLON.MeshBuilder.CreateBox('browL', {
+                    width: 0.1,
+                    height: 0.015,
+                    depth: 0.04
+                }, this.scene);
+                browL.position.set(-0.14, 2.05, 0.35);
+                browL.material = hairMat;
+                browL.parent = this.group;
+                this.browL = browL;
+
+                const browR = browL.clone('browR');
+                browR.position.x = 0.14;
+                browR.parent = this.group;
+                this.browR = browR;
+            }
+
+            createBody() {
+                const body = BABYLON.MeshBuilder.CreateBox('body', {
+                    width: 0.4,
+                    height: 0.7,
+                    depth: 0.28
+                }, this.scene);
+                body.position.y = 1.1;
+                
+                const bodyMat = new BABYLON.StandardMaterial('body', this.scene);
+                bodyMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.35);
+                bodyMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                body.material = bodyMat;
+                body.parent = this.group;
+                this.body = body;
+
+                const neck = BABYLON.MeshBuilder.CreateCylinder('neck', {
+                    diameter: 0.14,
+                    height: 0.15
+                }, this.scene);
+                neck.position.y = 1.65;
+                const neckMat = new BABYLON.StandardMaterial('neck', this.scene);
+                neckMat.diffuseColor = new BABYLON.Color3(0.96, 0.83, 0.71);
+                neck.material = neckMat;
+                neck.parent = this.group;
+            }
+
+            createArms() {
+                const armMat = new BABYLON.StandardMaterial('arm', this.scene);
+                armMat.diffuseColor = new BABYLON.Color3(0.96, 0.83, 0.71);
+                armMat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+
+                const armL = BABYLON.MeshBuilder.CreateCylinder('armL', {
+                    diameter: 0.1,
+                    height: 0.6
+                }, this.scene);
+                armL.position.set(-0.25, 1.4, 0);
+                armL.rotation.z = 0.3;
+                armL.material = armMat;
+                armL.parent = this.group;
+                this.armL = armL;
+
+                const armR = armL.clone('armR');
+                armR.position.x = 0.25;
+                armR.rotation.z = -0.3;
+                armR.parent = this.group;
+                this.armR = armR;
+
+                const handL = BABYLON.MeshBuilder.CreateSphere('handL', {
+                    diameter: 0.09,
+                    segments: 20
+                }, this.scene);
+                handL.position.set(-0.35, 0.85, 0);
+                handL.material = armMat;
+                handL.parent = this.group;
+
+                const handR = handL.clone('handR');
+                handR.position.x = 0.35;
+                handR.parent = this.group;
+            }
+
+            createLegs() {
+                const legMat = new BABYLON.StandardMaterial('leg', this.scene);
+                legMat.diffuseColor = new BABYLON.Color3(0.25, 0.25, 0.3);
+
+                const legL = BABYLON.MeshBuilder.CreateCylinder('legL', {
+                    diameter: 0.1,
+                    height: 0.5
+                }, this.scene);
+                legL.position.set(-0.13, 0.45, 0);
+                legL.material = legMat;
+                legL.parent = this.group;
+
+                const legR = legL.clone('legR');
+                legR.position.x = 0.13;
+                legR.parent = this.group;
+
+                const shoeMat = new BABYLON.StandardMaterial('shoe', this.scene);
+                shoeMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+                const shoeL = BABYLON.MeshBuilder.CreateBox('shoeL', {
+                    width: 0.1,
+                    height: 0.08,
+                    depth: 0.18
+                }, this.scene);
+                shoeL.position.set(-0.13, -0.25, 0);
+                shoeL.material = shoeMat;
+                shoeL.parent = this.group;
+
+                const shoeR = shoeL.clone('shoeR');
+                shoeR.position.x = 0.13;
+                shoeR.parent = this.group;
+            }
+
+            startAnimations() {
+                let t = 0;
+                this.scene.registerBeforeRender(() => {
+                    t += 0.016;
+                    
+                    // Breathing
+                    this.head.position.y = 1.9 + Math.sin(t * 1.2) * 0.02;
+                    this.body.position.z = Math.sin(t * 1.2) * 0.01;
+                    
+                    // Blinking
+                    const blink = Math.max(0, Math.sin(t * 1.5) - 0.9);
+                    this.eyeL.scaling.y = 1 - blink * 0.3;
+                    this.eyeR.scaling.y = 1 - blink * 0.3;
+                    
+                    // Head tilt
+                    this.head.rotation.z = Math.sin(t * 0.6) * 0.05;
+
+                    // Speaking animation
+                    if (this.isSpeaking) {
+                        this.mouth.scaling.y = 0.8 + Math.sin(t * 8) * 0.5;
+                        this.armL.rotation.z = 0.3 + Math.sin(t * 3) * 0.15;
+                        this.armR.rotation.z = -0.3 - Math.sin(t * 3) * 0.15;
+                    }
+                });
+            }
+
+            startSpeaking() {
+                this.isSpeaking = true;
+            }
+
+            stopSpeaking() {
+                this.isSpeaking = false;
+                this.mouth.scaling.y = 1;
+                this.armL.rotation.z = 0.3;
+                this.armR.rotation.z = -0.3;
+            }
+
+            setEmotion(emotion, intensity = 0.7) {
+                this.emotion = emotion;
+                const emojis = {
+                    'happy': '😊',
+                    'sad': '😢',
+                    'neutral': '😐',
+                    'surprised': '😲'
+                };
+                document.getElementById('emotionLabel').textContent = 
+                    `${emojis[emotion] || '😊'} ${emotion}`;
+
+                if (emotion === 'happy') {
+                    this.mouth.scaling.x = 1.5 * intensity;
+                    this.browL.position.y = 2.08;
+                    this.browR.position.y = 2.08;
+                } else if (emotion === 'sad') {
+                    this.mouth.scaling.x = 0.7 * intensity;
+                    this.browL.position.y = 2.00;
+                    this.browR.position.y = 2.00;
+                } else {
+                    this.mouth.scaling.x = 1;
+                    this.browL.position.y = 2.05;
+                    this.browR.position.y = 2.05;
+                }
+            }
+        }
+
+        function init() {
+            const canvas = document.getElementById('renderCanvas');
+            engine = new BABYLON.Engine(canvas, true);
+            scene = new BABYLON.Scene(engine);
+            scene.clearColor = new BABYLON.Color4(0.06, 0.09, 0.15, 1);
+
+            const camera = new BABYLON.ArcRotateCamera('camera',
+                Math.PI / 2, Math.PI / 2.3, 3.8,
+                new BABYLON.Vector3(0, 1.3, 0), scene);
+            camera.attachControl(canvas, true);
+            camera.wheelPrecision = 30;
+
+            const ambLight = new BABYLON.HemisphericLight('ambLight',
+                new BABYLON.Vector3(0, 1, 0.2), scene);
+            ambLight.intensity = 0.55;
+
+            const keyLight = new BABYLON.PointLight('keyLight',
+                new BABYLON.Vector3(2.5, 3, 2.5), scene);
+            keyLight.intensity = 1.2;
+            keyLight.range = 20;
+
+            const fillLight = new BABYLON.PointLight('fillLight',
+                new BABYLON.Vector3(-2, 2, 1.5), scene);
+            fillLight.intensity = 0.5;
+            fillLight.range = 18;
+
+            const ground = BABYLON.MeshBuilder.CreateGround('ground',
+                { width: 10, height: 10 }, scene);
+            const groundMat = new BABYLON.StandardMaterial('groundMat', scene);
+            groundMat.diffuseColor = new BABYLON.Color3(0.12, 0.14, 0.18);
+            ground.material = groundMat;
+
+            avatar = new Avatar(scene);
+            avatar.setEmotion('happy', 0.6);
+
+            engine.runRenderLoop(() => scene.render());
+            window.addEventListener('resize', () => engine.resize());
+
+            console.log('✓ Avatar initialized');
+        }
+
+        // Speech Recognition
+        function initVoiceInput() {
+            if (!SpeechRecognition) {
+                alert('Speech Recognition not supported in your browser. Please use Chrome or Edge.');
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                console.log('🎤 Listening...');
+                isListening = true;
+                document.getElementById('voiceBtn').classList.add('listening');
+                document.getElementById('voiceStatus').textContent = '🎤 Listening...';
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                console.log('Heard:', transcript);
+                document.getElementById('msgInput').value = transcript;
+                sendMsg();
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                document.getElementById('voiceStatus').textContent = `Error: ${event.error}`;
+                isListening = false;
+                document.getElementById('voiceBtn').classList.remove('listening');
+            };
+
+            recognition.onend = () => {
+                console.log('🎤 Stopped listening');
+                isListening = false;
+                document.getElementById('voiceBtn').classList.remove('listening');
+                document.getElementById('voiceStatus').textContent = '';
+            };
+
+            document.getElementById('voiceBtn').addEventListener('click', () => {
+                if (!isListening) {
+                    recognition.start();
+                } else {
+                    recognition.stop();
+                }
+            });
+        }
+
+        // Text to Speech
+        function speak(text) {
+            if (!speechSynthesis) {
+                console.warn('Text-to-speech not supported');
+                return;
+            }
+
+            // Cancel any ongoing speech
+            speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            utterance.onstart = () => {
+                console.log('🔊 Speaking...');
+                isSpeaking = true;
+                document.getElementById('voiceBtn').classList.add('speaking');
+                if (avatar) avatar.startSpeaking();
+            };
+
+            utterance.onend = () => {
+                console.log('🔊 Finished speaking');
+                isSpeaking = false;
+                document.getElementById('voiceBtn').classList.remove('speaking');
+                if (avatar) avatar.stopSpeaking();
+            };
+
+            utterance.onerror = (event) => {
+                console.error('Speech error:', event.error);
+                isSpeaking = false;
+                document.getElementById('voiceBtn').classList.remove('speaking');
+            };
+
+            speechSynthesis.speak(utterance);
+        }
+
+        // Chat functions
+        function sendMsg() {
+            const input = document.getElementById('msgInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            addMsg(msg, 'user');
+            input.value = '';
+
+            console.log('Sending:', msg);
+
+            fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            })
+            .then(r => r.json())
+            .then(data => {
+                console.log('Response:', data);
+                if (data.response) {
+                    addMsg(data.response, 'bot');
+                    
+                    // Speak the response
+                    setTimeout(() => {
+                        speak(data.response);
+                    }, 500);
+
+                    if (data.emotion && avatar) {
+                        avatar.setEmotion(data.emotion.emotion, data.emotion.intensity || 0.7);
+                    }
+                } else if (data.error) {
+                    addMsg('Error: ' + data.error, 'bot');
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                addMsg('Connection error. Try again.', 'bot');
+            });
+        }
+
+        function addMsg(text, role) {
+            const box = document.getElementById('messagesBox');
+            const div = document.createElement('div');
+            div.className = 'msg ' + role;
+            div.innerHTML = `<div class="msg-content">${text}</div>`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        window.addEventListener('load', () => {
+            console.log('Page loaded');
+            init();
+            initVoiceInput();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('msgInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendMsg();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Avatar Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0e27;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00a0d2;
+        }
+        .test-section {
+            background: #1a1f3a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            border-left: 4px solid #00a0d2;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #2d5016;
+            color: #7ec850;
+        }
+        .status.error {
+            background: #5a1c1c;
+            color: #ff6b6b;
+        }
+        .status.pending {
+            background: #4a3f1c;
+            color: #ffd700;
+        }
+        canvas {
+            border: 2px solid #00a0d2;
+            width: 100%;
+            height: 400px;
+            background: #0f1b35;
+            margin: 20px 0;
+        }
+        button {
+            background: #00a0d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0078a8;
+        }
+        pre {
+            background: #0f1b35;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .log-output {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 3D Avatar Debug Console</h1>
+        
+        <div class="test-section">
+            <h2>📋 System Status</h2>
+            <div id="babylonStatus" class="status pending">⏳ Checking Babylon.js...</div>
+            <div id="canvasStatus" class="status pending">⏳ Checking Canvas...</div>
+            <div id="avatarStatus" class="status pending">⏳ Avatar Status...</div>
+            <div id="backendStatus" class="status pending">⏳ Backend Connection...</div>
+        </div>
+
+        <div class="test-section">
+            <h2>🎮 Test Canvas</h2>
+            <canvas id="testCanvas"></canvas>
+            <button onclick="testCanvas()">Test Canvas Rendering</button>
+            <button onclick="testBabylon()">Test Babylon.js</button>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Console Output</h2>
+            <div class="log-output" id="logOutput">Initializing...\n</div>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="test-section">
+            <h2>🎯 Live Tests</h2>
+            <button onclick="testAvatarManager()">Create Avatar</button>
+            <button onclick="testChatManager()">Create Chat Manager</button>
+            <button onclick="loadIndexNew()">Load Full App</button>
+        </div>
+    </div>
+
+    <!-- Babylon.js Library -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script>
+        // Custom logging
+        const logs = [];
+        const maxLogs = 100;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            logs.push(logEntry);
+            if (logs.length > maxLogs) logs.shift();
+            updateLogOutput();
+            console.log(message);
+        }
+
+        function updateLogOutput() {
+            document.getElementById('logOutput').textContent = logs.join('\n');
+            document.getElementById('logOutput').scrollTop = document.getElementById('logOutput').scrollHeight;
+        }
+
+        function clearLog() {
+            logs.length = 0;
+            updateLogOutput();
+        }
+
+        function setStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            element.className = 'status ' + status;
+            element.textContent = message;
+        }
+
+        // Initial checks
+        log('🚀 Debug Console Started');
+
+        // Check Babylon.js
+        if (typeof BABYLON !== 'undefined') {
+            setStatus('babylonStatus', 'success', '✓ Babylon.js loaded: ' + BABYLON.Engine.Version);
+            log('✓ Babylon.js is available');
+        } else {
+            setStatus('babylonStatus', 'error', '✗ Babylon.js failed to load');
+            log('✗ Babylon.js not found');
+        }
+
+        // Check Canvas
+        function testCanvas() {
+            try {
+                const canvas = document.getElementById('testCanvas');
+                if (!canvas) {
+                    setStatus('canvasStatus', 'error', '✗ Canvas element not found');
+                    log('✗ Canvas element missing');
+                    return;
+                }
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    setStatus('canvasStatus', 'error', '✗ Canvas 2D context failed');
+                    log('✗ Cannot get 2D context');
+                    return;
+                }
+
+                // Draw test pattern
+                ctx.fillStyle = '#00a0d2';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '20px Arial';
+                ctx.fillText('✓ Canvas Works!', 50, 50);
+
+                setStatus('canvasStatus', 'success', '✓ Canvas 2D rendering works');
+                log('✓ Canvas 2D context working');
+            } catch (error) {
+                setStatus('canvasStatus', 'error', '✗ Canvas error: ' + error.message);
+                log('✗ Canvas error: ' + error.message);
+            }
+        }
+
+        function testBabylon() {
+            try {
+                log('Testing Babylon.js WebGL...');
+                
+                if (typeof BABYLON === 'undefined') {
+                    setStatus('babylonStatus', 'error', '✗ Babylon.js not loaded');
+                    log('✗ Babylon.js not loaded');
+                    return;
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 400;
+                canvas.height = 300;
+                
+                const engine = new BABYLON.Engine(canvas, true);
+                log('✓ Babylon Engine created');
+                
+                const scene = new BABYLON.Scene(engine);
+                log('✓ Scene created');
+                
+                const sphere = BABYLON.MeshBuilder.CreateSphere('sphere', { diameter: 1 }, scene);
+                log('✓ Sphere mesh created');
+                
+                setStatus('babylonStatus', 'success', '✓ Babylon.js is fully functional');
+                log('✓ All Babylon.js tests passed!');
+            } catch (error) {
+                setStatus('babylonStatus', 'error', '✗ Babylon error: ' + error.message);
+                log('✗ Babylon error: ' + error.message);
+                log('Stack: ' + error.stack);
+            }
+        }
+
+        function testAvatarManager() {
+            try {
+                log('Testing AvatarManager...');
+                
+                if (typeof AvatarManager === 'undefined') {
+                    setStatus('avatarStatus', 'error', '✗ AvatarManager not defined - need to load avatar-control.js');
+                    log('⚠️ Loading avatar-control.js...');
+                    
+                    const script = document.createElement('script');
+                    script.src = '/static/avatar-control.js';
+                    script.onload = () => {
+                        log('✓ avatar-control.js loaded');
+                        testAvatarManager();
+                    };
+                    script.onerror = () => {
+                        setStatus('avatarStatus', 'error', '✗ Failed to load avatar-control.js');
+                        log('✗ Failed to load avatar-control.js');
+                    };
+                    document.head.appendChild(script);
+                    return;
+                }
+
+                log('Creating test scene...');
+                const canvas = document.getElementById('testCanvas');
+                const engine = new BABYLON.Engine(canvas, true);
+                const scene = new BABYLON.Scene(engine);
+                
+                log('Creating avatar...');
+                const avatar = new AvatarManager(scene);
+                window.testAvatarManager = avatar;
+                
+                setStatus('avatarStatus', 'success', '✓ Avatar created successfully!');
+                log('✓ AvatarManager test passed!');
+                
+                engine.runRenderLoop(() => {
+                    scene.render();
+                });
+            } catch (error) {
+                setStatus('avatarStatus', 'error', '✗ Avatar error: ' + error.message);
+                log('✗ Avatar error: ' + error.message);
+                log('Stack: ' + error.stack);
+            }
+        }
+
+        function testChatManager() {
+            try {
+                log('Testing ChatManager...');
+                
+                if (typeof ChatManager === 'undefined') {
+                    setStatus('backendStatus', 'error', '✗ ChatManager not defined - need to load chat-enhanced.js');
+                    log('⚠️ Loading chat-enhanced.js...');
+                    
+                    const script = document.createElement('script');
+                    script.src = '/static/chat-enhanced.js';
+                    script.onload = () => {
+                        log('✓ chat-enhanced.js loaded');
+                        testChatManager();
+                    };
+                    script.onerror = () => {
+                        setStatus('backendStatus', 'error', '✗ Failed to load chat-enhanced.js');
+                        log('✗ Failed to load chat-enhanced.js');
+                    };
+                    document.head.appendChild(script);
+                    return;
+                }
+
+                log('✓ ChatManager class loaded');
+                setStatus('backendStatus', 'success', '✓ Chat system ready');
+            } catch (error) {
+                setStatus('backendStatus', 'error', '✗ Chat error: ' + error.message);
+                log('✗ Chat error: ' + error.message);
+            }
+        }
+
+        function loadIndexNew() {
+            log('Loading full app...');
+            window.location.href = '/';
+        }
+
+        // Auto-test on load
+        window.addEventListener('load', () => {
+            log('📄 Page fully loaded');
+            testCanvas();
+            testBabylon();
+        });
+    </script>
+</body>
+</html>

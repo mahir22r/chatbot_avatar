@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mike - Hyper-Realistic 3D AI Avatar Chat</title>
+    <style>
+        :root {
+            --primary: #00a0d2;
+            --secondary: #0078a8;
+            --accent: #ff6b6b;
+            --bg-dark: #0a0e27;
+            --bg-lighter: #1a1f3a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b5c0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 0;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-lighter) 100%);
+        }
+
+        .avatar-section {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a3a52 0%, #2c2c54 50%, #1a3a52 100%);
+            overflow: hidden;
+            box-shadow: inset -2px 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: linear-gradient(180deg, #0f1b35 0%, #1a3a52 50%, #0f1b35 100%);
+        }
+
+        .avatar-info {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            z-index: 10;
+            background: rgba(10, 14, 39, 0.9);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .avatar-info h3 {
+            color: var(--primary);
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .avatar-info p {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-lighter) 100%);
+            border-left: 1px solid rgba(0, 160, 210, 0.2);
+        }
+
+        .chat-header {
+            padding: 30px;
+            border-bottom: 1px solid rgba(0, 160, 210, 0.1);
+            background: rgba(10, 14, 39, 0.5);
+        }
+
+        .chat-header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            line-height: 1.4;
+            font-size: 14px;
+            word-wrap: break-word;
+        }
+
+        .message.bot .message-content {
+            background: rgba(0, 160, 210, 0.15);
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            color: var(--text-primary);
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #00a0d2, #0078a8);
+            color: white;
+        }
+
+        .input-section {
+            padding: 20px 30px;
+            border-top: 1px solid rgba(0, 160, 210, 0.1);
+            background: rgba(10, 14, 39, 0.5);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+        }
+
+        #userInput {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            border-radius: 8px;
+            background: rgba(26, 31, 58, 0.8);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+
+        #userInput:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(26, 31, 58, 1);
+        }
+
+        #userInput::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .btn-voice {
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            background: rgba(0, 160, 210, 0.1);
+            border-radius: 8px;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+
+        .btn-voice:hover {
+            background: rgba(0, 160, 210, 0.2);
+            border-color: var(--primary);
+        }
+
+        .btn-send {
+            width: 80px;
+            height: 44px;
+            padding: 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-send:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 160, 210, 0.3);
+        }
+
+        .btn-send:active {
+            transform: translateY(0);
+        }
+
+        .status-bar {
+            padding: 12px 30px;
+            background: rgba(10, 14, 39, 0.3);
+            border-top: 1px solid rgba(0, 160, 210, 0.1);
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .avatar-section {
+                height: 40vh;
+                min-height: 300px;
+            }
+
+            .chat-section {
+                height: 60vh;
+            }
+        }
+
+        .emotion-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 14, 39, 0.9);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 160, 210, 0.3);
+            font-size: 12px;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Avatar Section -->
+        <div class="avatar-section">
+            <canvas id="renderCanvas"></canvas>
+            
+            <div class="emotion-indicator" id="emotionIndicator">😊 Neutral</div>
+            
+            <div class="avatar-info">
+                <h3>🤖 Mike - Your AI Friend</h3>
+                <p>Hyper-realistic 3D AI Avatar</p>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <div class="chat-header">
+                <h1>Chat with Mike</h1>
+                <p>
+                    <span class="status-indicator"></span>
+                    <span id="statusText">Connecting...</span>
+                </p>
+            </div>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    <div class="message-content">
+                        👋 Hi there! I'm Mike, your hyper-realistic AI friend. I can chat about anything, answer your questions, and I'll respond with genuine facial expressions and body language. What would you like to talk about?
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-section">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <input 
+                            type="text" 
+                            id="userInput" 
+                            placeholder="Type your message..." 
+                            autocomplete="off"
+                        />
+                    </div>
+                    <button class="btn-voice" id="voiceBtn" title="Use voice input">🎤</button>
+                    <button class="btn-send" onclick="sendMessage()">
+                        Send
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <span id="connectionStatus">Connected • Ready</span>
+                <span id="aiStatus"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Babylon.js Library -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script>
+        console.log('🚀 HYPER-REALISTIC AVATAR SYSTEM INITIALIZING');
+        let engine, scene, avatarManager;
+
+        class RealisticAvatarManager {
+            constructor(scene) {
+                console.log('🎨 Creating hyper-realistic human avatar...');
+                this.scene = scene;
+                this.avatarGroup = new BABYLON.TransformNode('avatarGroup', scene);
+                this.currentEmotion = 'neutral';
+                this.emotionIntensity = 0;
+                
+                // Create all body parts with high detail
+                this.createHeadAndFace();
+                this.createBody();
+                this.createArms();
+                this.createLegs();
+                this.setupLighting();
+                this.setupAnimations();
+                
+                console.log('✅ Avatar created successfully!');
+            }
+
+            createHeadAndFace() {
+                // HEAD - High detail sphere
+                const headGeom = BABYLON.MeshBuilder.CreateSphere('head', { 
+                    diameter: 0.35, 
+                    segments: 128,
+                    slice: 1.0
+                }, this.scene);
+                headGeom.position.y = 1.85;
+                headGeom.parent = this.avatarGroup;
+
+                // Skin material - Photorealistic
+                const skinMat = new BABYLON.StandardMaterial('skinMat', this.scene);
+                skinMat.diffuseColor = new BABYLON.Color3(0.96, 0.83, 0.71); // Warm skin tone
+                skinMat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+                skinMat.specularPower = 64;
+                skinMat.emissiveColor = new BABYLON.Color3(0.05, 0.04, 0.03);
+                skinMat.roughness = 0.3;
+                skinMat.alpha = 1;
+                headGeom.material = skinMat;
+                this.headMesh = headGeom;
+
+                // HAIR - Detailed structure
+                const hairMat = new BABYLON.StandardMaterial('hairMat', this.scene);
+                hairMat.diffuseColor = new BABYLON.Color3(0.2, 0.15, 0.1); // Dark brown
+                hairMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                hairMat.specularPower = 32;
+
+                // Hair top
+                const hairTop = BABYLON.MeshBuilder.CreateSphere('hairTop', { 
+                    diameter: 0.38, 
+                    segments: 64,
+                    slice: 0.65
+                }, this.scene);
+                hairTop.position.set(0, 2.05, 0);
+                hairTop.material = hairMat;
+                hairTop.parent = this.avatarGroup;
+
+                // Hair sides (bangs style)
+                const hairLeft = BABYLON.MeshBuilder.CreateBox('hairLeft', {
+                    width: 0.12, height: 0.28, depth: 0.18
+                }, this.scene);
+                hairLeft.position.set(-0.22, 1.8, 0.05);
+                hairLeft.material = hairMat;
+                hairLeft.parent = this.avatarGroup;
+
+                const hairRight = hairLeft.clone('hairRight');
+                hairRight.position.x = 0.22;
+                hairRight.parent = this.avatarGroup;
+
+                // EYES - Detailed with iris and pupil
+                this.createDetailedEyes(skinMat);
+
+                // EYEBROWS
+                this.createEyebrows(hairMat);
+
+                // NOSE
+                const noseMat = new BABYLON.StandardMaterial('noseMat', this.scene);
+                noseMat.diffuseColor = new BABYLON.Color3(0.94, 0.81, 0.68); // Slightly darker
+                const nose = BABYLON.MeshBuilder.CreateBox('nose', {
+                    width: 0.035, height: 0.1, depth: 0.065
+                }, this.scene);
+                nose.position.set(0, 1.8, 0.35);
+                nose.material = noseMat;
+                nose.parent = this.avatarGroup;
+
+                // MOUTH - Animated capable
+                this.createMouth(skinMat);
+
+                // EARS
+                this.createEars(skinMat);
+
+                // NECK - High detail cylinder
+                const neckMat = new BABYLON.StandardMaterial('neckMat', this.scene);
+                neckMat.diffuseColor = new BABYLON.Color3(0.93, 0.8, 0.68);
+                neckMat.specularColor = new BABYLON.Color3(0.15, 0.15, 0.15);
+                neckMat.specularPower = 32;
+
+                const neck = BABYLON.MeshBuilder.CreateCylinder('neck', {
+                    diameter: 0.12, height: 0.18, tessellation: 32
+                }, this.scene);
+                neck.position.y = 1.58;
+                neck.material = neckMat;
+                neck.parent = this.avatarGroup;
+            }
+
+            createDetailedEyes(skinMat) {
+                // Eye whites
+                const eyeWhiteMat = new BABYLON.StandardMaterial('eyeWhiteMat', this.scene);
+                eyeWhiteMat.diffuseColor = new BABYLON.Color3(0.99, 0.99, 0.99);
+                eyeWhiteMat.specularColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+                eyeWhiteMat.specularPower = 128;
+
+                const eyeLeftWhite = BABYLON.MeshBuilder.CreateSphere('eyeLeftWhite', {
+                    diameter: 0.08, segments: 32
+                }, this.scene);
+                eyeLeftWhite.position.set(-0.11, 1.87, 0.32);
+                eyeLeftWhite.material = eyeWhiteMat;
+                eyeLeftWhite.parent = this.avatarGroup;
+                this.eyeLeftWhite = eyeLeftWhite;
+
+                const eyeRightWhite = eyeLeftWhite.clone('eyeRightWhite');
+                eyeRightWhite.position.x = 0.11;
+                eyeRightWhite.parent = this.avatarGroup;
+                this.eyeRightWhite = eyeRightWhite;
+
+                // Iris
+                const irisMat = new BABYLON.StandardMaterial('irisMat', this.scene);
+                irisMat.diffuseColor = new BABYLON.Color3(0.3, 0.5, 0.8); // Blue eyes
+                irisMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+                irisMat.specularPower = 64;
+
+                const irisLeft = BABYLON.MeshBuilder.CreateSphere('irisLeft', {
+                    diameter: 0.048, segments: 24
+                }, this.scene);
+                irisLeft.position.set(-0.11, 1.87, 0.36);
+                irisLeft.material = irisMat;
+                irisLeft.parent = this.avatarGroup;
+
+                const irisRight = irisLeft.clone('irisRight');
+                irisRight.position.x = 0.11;
+                irisRight.parent = this.avatarGroup;
+
+                // Pupils
+                const pupilMat = new BABYLON.StandardMaterial('pupilMat', this.scene);
+                pupilMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+                pupilMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+
+                const pupilLeft = BABYLON.MeshBuilder.CreateSphere('pupilLeft', {
+                    diameter: 0.025, segments: 16
+                }, this.scene);
+                pupilLeft.position.set(-0.11, 1.87, 0.375);
+                pupilLeft.material = pupilMat;
+                pupilLeft.parent = this.avatarGroup;
+
+                const pupilRight = pupilLeft.clone('pupilRight');
+                pupilRight.position.x = 0.11;
+                pupilRight.parent = this.avatarGroup;
+
+                // Eye shine (reflective highlight)
+                const shineMat = new BABYLON.StandardMaterial('shineMat', this.scene);
+                shineMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+                shineMat.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8);
+                shineMat.specularPower = 256;
+                shineMat.emissiveColor = new BABYLON.Color3(0.3, 0.3, 0.3);
+
+                const shineLeft = BABYLON.MeshBuilder.CreateSphere('shineLeft', {
+                    diameter: 0.01, segments: 8
+                }, this.scene);
+                shineLeft.position.set(-0.095, 1.88, 0.38);
+                shineLeft.material = shineMat;
+                shineLeft.parent = this.avatarGroup;
+
+                const shineRight = shineLeft.clone('shineRight');
+                shineRight.position.x = 0.095;
+                shineRight.parent = this.avatarGroup;
+            }
+
+            createEyebrows(hairMat) {
+                const browLeft = BABYLON.MeshBuilder.CreateBox('browLeft', {
+                    width: 0.08, height: 0.015, depth: 0.03
+                }, this.scene);
+                browLeft.position.set(-0.11, 1.98, 0.32);
+                browLeft.rotation.z = -0.2;
+                browLeft.material = hairMat;
+                browLeft.parent = this.avatarGroup;
+                this.browLeft = browLeft;
+
+                const browRight = browLeft.clone('browRight');
+                browRight.position.x = 0.11;
+                browRight.rotation.z = 0.2;
+                browRight.parent = this.avatarGroup;
+                this.browRight = browRight;
+            }
+
+            createMouth(skinMat) {
+                const mouthMat = new BABYLON.StandardMaterial('mouthMat', this.scene);
+                mouthMat.diffuseColor = new BABYLON.Color3(0.7, 0.4, 0.4); // Lip color
+                mouthMat.specularColor = new BABYLON.Color3(0.2, 0.1, 0.1);
+                mouthMat.specularPower = 32;
+
+                const mouth = BABYLON.MeshBuilder.CreateBox('mouth', {
+                    width: 0.06, height: 0.015, depth: 0.035
+                }, this.scene);
+                mouth.position.set(0, 1.68, 0.35);
+                mouth.material = mouthMat;
+                mouth.parent = this.avatarGroup;
+                this.mouth = mouth;
+            }
+
+            createEars(skinMat) {
+                const earLeft = BABYLON.MeshBuilder.CreateBox('earLeft', {
+                    width: 0.05, height: 0.08, depth: 0.04
+                }, this.scene);
+                earLeft.position.set(-0.2, 1.8, 0);
+                earLeft.material = skinMat;
+                earLeft.parent = this.avatarGroup;
+
+                const earRight = earLeft.clone('earRight');
+                earRight.position.x = 0.2;
+                earRight.parent = this.avatarGroup;
+            }
+
+            createBody() {
+                const bodyMat = new BABYLON.StandardMaterial('bodyMat', this.scene);
+                bodyMat.diffuseColor = new BABYLON.Color3(0.3, 0.3, 0.35); // Shirt color
+                bodyMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                bodyMat.specularPower = 16;
+
+                // Torso/Chest
+                const chest = BABYLON.MeshBuilder.CreateBox('chest', {
+                    width: 0.35, height: 0.55, depth: 0.25
+                }, this.scene);
+                chest.position.y = 1.05;
+                chest.material = bodyMat;
+                chest.parent = this.avatarGroup;
+                this.chest = chest;
+
+                // Shirt/Jacket details
+                const shoulderMat = new BABYLON.StandardMaterial('shoulderMat', this.scene);
+                shoulderMat.diffuseColor = new BABYLON.Color3(0.25, 0.25, 0.3);
+                shoulderMat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+            }
+
+            createArms() {
+                const armMat = new BABYLON.StandardMaterial('armMat', this.scene);
+                armMat.diffuseColor = new BABYLON.Color3(0.96, 0.83, 0.71); // Skin tone
+                armMat.specularColor = new BABYLON.Color3(0.12, 0.12, 0.12);
+                armMat.specularPower = 32;
+
+                // Left arm upper
+                const armLeftUpper = BABYLON.MeshBuilder.CreateCylinder('armLeftUpper', {
+                    diameter: 0.095, height: 0.35, tessellation: 24
+                }, this.scene);
+                armLeftUpper.position.set(-0.22, 1.35, 0);
+                armLeftUpper.rotation.z = 0.3;
+                armLeftUpper.material = armMat;
+                armLeftUpper.parent = this.avatarGroup;
+
+                // Left arm lower
+                const armLeftLower = BABYLON.MeshBuilder.CreateCylinder('armLeftLower', {
+                    diameter: 0.08, height: 0.3, tessellation: 24
+                }, this.scene);
+                armLeftLower.position.set(-0.35, 0.95, 0);
+                armLeftLower.rotation.z = -0.4;
+                armLeftLower.material = armMat;
+                armLeftLower.parent = this.avatarGroup;
+
+                // Right arm upper
+                const armRightUpper = armLeftUpper.clone('armRightUpper');
+                armRightUpper.position.x = 0.22;
+                armRightUpper.rotation.z = -0.3;
+                armRightUpper.parent = this.avatarGroup;
+
+                // Right arm lower
+                const armRightLower = armLeftLower.clone('armRightLower');
+                armRightLower.position.x = 0.35;
+                armRightLower.rotation.z = 0.4;
+                armRightLower.parent = this.avatarGroup;
+
+                // Hands
+                this.createHands(armMat);
+            }
+
+            createHands(armMat) {
+                const handLeft = BABYLON.MeshBuilder.CreateSphere('handLeft', {
+                    diameter: 0.08, segments: 24
+                }, this.scene);
+                handLeft.position.set(-0.42, 0.65, 0);
+                handLeft.material = armMat;
+                handLeft.parent = this.avatarGroup;
+                this.handLeft = handLeft;
+
+                const handRight = handLeft.clone('handRight');
+                handRight.position.x = 0.42;
+                handRight.parent = this.avatarGroup;
+                this.handRight = handRight;
+            }
+
+            createLegs() {
+                const legMat = new BABYLON.StandardMaterial('legMat', this.scene);
+                legMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25); // Pants
+                legMat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+
+                // Left leg upper
+                const legLeftUpper = BABYLON.MeshBuilder.CreateCylinder('legLeftUpper', {
+                    diameter: 0.1, height: 0.45, tessellation: 24
+                }, this.scene);
+                legLeftUpper.position.set(-0.12, 0.5, 0);
+                legLeftUpper.material = legMat;
+                legLeftUpper.parent = this.avatarGroup;
+
+                // Left leg lower
+                const legLeftLower = BABYLON.MeshBuilder.CreateCylinder('legLeftLower', {
+                    diameter: 0.09, height: 0.4, tessellation: 24
+                }, this.scene);
+                legLeftLower.position.set(-0.12, 0.05, 0);
+                legLeftLower.material = legMat;
+                legLeftLower.parent = this.avatarGroup;
+
+                // Right leg upper
+                const legRightUpper = legLeftUpper.clone('legRightUpper');
+                legRightUpper.position.x = 0.12;
+                legRightUpper.parent = this.avatarGroup;
+
+                // Right leg lower
+                const legRightLower = legLeftLower.clone('legRightLower');
+                legRightLower.position.x = 0.12;
+                legRightLower.parent = this.avatarGroup;
+
+                // Shoes
+                const shoeMat = new BABYLON.StandardMaterial('shoeMat', this.scene);
+                shoeMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1); // Black
+                shoeMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+
+                const shoeLeft = BABYLON.MeshBuilder.CreateBox('shoeLeft', {
+                    width: 0.1, height: 0.08, depth: 0.16
+                }, this.scene);
+                shoeLeft.position.set(-0.12, -0.25, 0);
+                shoeLeft.material = shoeMat;
+                shoeLeft.parent = this.avatarGroup;
+
+                const shoeRight = shoeLeft.clone('shoeRight');
+                shoeRight.position.x = 0.12;
+                shoeRight.parent = this.avatarGroup;
+            }
+
+            setupLighting() {
+                // Already setup in main init
+            }
+
+            setupAnimations() {
+                this.startIdleAnimation();
+            }
+
+            startIdleAnimation() {
+                let time = 0;
+                this.scene.registerBeforeRender(() => {
+                    time += 0.016; // ~60fps
+                    
+                    // Breathing motion
+                    this.chest.position.z = Math.sin(time * 1.5) * 0.01;
+                    
+                    // Gentle head tilt
+                    this.headMesh.rotation.z = Math.sin(time * 0.5) * 0.05;
+                    
+                    // Eye blinking
+                    if (Math.sin(time * 2) > 0.95) {
+                        this.eyeLeftWhite.scaling.y = 0.3;
+                        this.eyeRightWhite.scaling.y = 0.3;
+                    } else {
+                        this.eyeLeftWhite.scaling.y = 1;
+                        this.eyeRightWhite.scaling.y = 1;
+                    }
+                });
+            }
+
+            setEmotion(emotion, intensity = 0.7) {
+                this.currentEmotion = emotion;
+                this.emotionIntensity = Math.min(intensity, 1);
+
+                const emojiMap = {
+                    'happy': '😊',
+                    'sad': '😢',
+                    'surprised': '😲',
+                    'angry': '😠',
+                    'neutral': '😐'
+                };
+
+                document.getElementById('emotionIndicator').textContent = 
+                    `${emojiMap[emotion] || '😊'} ${emotion}`;
+
+                // Update facial features based on emotion
+                if (emotion === 'happy') {
+                    this.browLeft.position.y = 2.02;
+                    this.browRight.position.y = 2.02;
+                    this.mouth.scaling.x = 1.3 * intensity;
+                } else if (emotion === 'sad') {
+                    this.browLeft.position.y = 1.93;
+                    this.browRight.position.y = 1.93;
+                    this.mouth.scaling.x = 0.8 * intensity;
+                }
+            }
+        }
+
+        function initApp() {
+            try {
+                console.log('✨ Babylon.js version:', BABYLON.Engine.Version);
+                
+                const canvas = document.getElementById('renderCanvas');
+                if (!canvas) throw new Error('Canvas not found!');
+                
+                engine = new BABYLON.Engine(canvas, true);
+                console.log('✓ Engine created');
+                
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color4(0.05, 0.08, 0.12, 1);
+                console.log('✓ Scene created');
+                
+                // Camera - positioned for upper body focus
+                const camera = new BABYLON.ArcRotateCamera(
+                    'camera',
+                    Math.PI / 2,
+                    Math.PI / 2.3,
+                    3.5,
+                    new BABYLON.Vector3(0, 1.3, 0),
+                    scene
+                );
+                camera.attachControl(canvas, true);
+                camera.wheelPrecision = 30;
+                camera.lowerRadiusLimit = 1.5;
+                camera.upperRadiusLimit = 6;
+                console.log('✓ Camera created');
+                
+                // Lighting - Professional studio setup
+                const ambientLight = new BABYLON.HemisphericLight('ambientLight', 
+                    new BABYLON.Vector3(0, 1, 0.2), scene);
+                ambientLight.intensity = 0.5;
+                ambientLight.specular = new BABYLON.Color3(0.3, 0.3, 0.3);
+                ambientLight.groundColor = new BABYLON.Color3(0.2, 0.25, 0.3);
+
+                // Key light (main)
+                const keyLight = new BABYLON.PointLight('keyLight', 
+                    new BABYLON.Vector3(2.5, 3, 2.5), scene);
+                keyLight.intensity = 1.3;
+                keyLight.range = 25;
+                keyLight.specular = new BABYLON.Color3(0.4, 0.4, 0.4);
+
+                // Fill light (soften shadows)
+                const fillLight = new BABYLON.PointLight('fillLight', 
+                    new BABYLON.Vector3(-2, 2, 1.5), scene);
+                fillLight.intensity = 0.5;
+                fillLight.range = 20;
+
+                // Back/Rim light (separation)
+                const rimLight = new BABYLON.PointLight('rimLight', 
+                    new BABYLON.Vector3(0, 2.5, -3.5), scene);
+                rimLight.intensity = 0.6;
+                rimLight.range = 20;
+                rimLight.specular = new BABYLON.Color3(0.2, 0.2, 0.2);
+
+                console.log('✓ Lighting setup');
+                
+                // Create ground
+                const ground = BABYLON.MeshBuilder.CreateGround('ground', 
+                    { width: 10, height: 10 }, scene);
+                const groundMat = new BABYLON.StandardMaterial('groundMat', scene);
+                groundMat.diffuseColor = new BABYLON.Color3(0.12, 0.14, 0.18);
+                groundMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+                ground.material = groundMat;
+                ground.receiveShadows = true;
+                
+                // Create avatar
+                avatarManager = new RealisticAvatarManager(scene);
+                avatarManager.setEmotion('happy', 0.5);
+                console.log('✓ Avatar created');
+                
+                // Render loop
+                engine.runRenderLoop(() => {
+                    scene.render();
+                });
+                console.log('✓ Render loop started');
+                
+                // Resize handler
+                window.addEventListener('resize', () => {
+                    engine.resize();
+                });
+                
+                document.getElementById('statusText').textContent = 'Connected • Ready';
+                document.getElementById('connectionStatus').textContent = '✓ Connected • Ready';
+                
+                console.log('🎉 HYPER-REALISTIC AVATAR SYSTEM READY!');
+            } catch (error) {
+                console.error('❌ ERROR:', error);
+                console.error('Stack:', error.stack);
+                alert('Error: ' + error.message);
+                document.getElementById('statusText').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Chat functions
+        async function sendMessage() {
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            addMessage(message, 'user');
+            input.value = '';
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                const data = await response.json();
+                if (data.response) {
+                    addMessage(data.response, 'bot');
+                    
+                    if (data.emotion) {
+                        if (avatarManager) {
+                            avatarManager.setEmotion(
+                                data.emotion.emotion, 
+                                data.emotion.intensity || 0.7
+                            );
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Chat error:', error);
+                addMessage('Sorry, I had an error. Please try again.', 'bot');
+            }
+        }
+
+        function addMessage(text, role) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message ' + role;
+            messageEl.innerHTML = `<div class="message-content">${text}</div>`;
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        window.addEventListener('load', () => {
+            console.log('📄 Page loaded');
+            initApp();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('userInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
